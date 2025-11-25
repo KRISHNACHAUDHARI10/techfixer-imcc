@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: techfixer-server
+  namespace: KRISHNA
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: techfixer-server
+  template:
+    metadata:
+      labels:
+        app: techfixer-server
+    spec:
+      imagePullSecrets:
+      - name: nexus-secret
+      containers:
+      - name: techfixer-server
+        image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/techfixer-server:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: PORT
+          value: "5000"
