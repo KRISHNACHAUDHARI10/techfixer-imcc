@@ -3,7 +3,12 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --production
+
+# use fast npm mirror
+RUN npm config set registry https://registry.npmmirror.com
+
+# fast, reliable installation
+RUN npm ci --omit=dev --prefer-offline --no-audit --legacy-peer-deps
 
 COPY . .
 
