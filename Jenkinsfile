@@ -83,22 +83,20 @@ spec:
             }
         }
 
-stage('SonarQube Scan') {
-    steps {
-        container('sonar-scanner') {
-            withCredentials([string(credentialsId: 'sonar-token-techfixer', variable: 'SONAR_TOKEN')]) {
-                sh '''
-                  sonar-scanner \
-                    -Dsonar.projectKey=2401029_techfixer \
-                    -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
-                    -Dsonar.login=$SONAR_TOKEN
-                '''
+        stage('SonarQube Scan') {
+            steps {
+                container('sonar-scanner') {
+                    withCredentials([string(credentialsId: 'sonar-token-techfixer', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                          sonar-scanner \
+                            -Dsonar.projectKey=2401029_techfixer \
+                            -Dsonar.host.url=http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000 \
+                            -Dsonar.login=$SONAR_TOKEN
+                        '''
+                    }
+                }
             }
         }
-    }
-}
-
-
 
         stage('Login to Nexus Registry') {
             steps {
@@ -109,58 +107,58 @@ stage('SonarQube Scan') {
                     '''
                 }
             }
-    stage('Tag + Push Image') {
-    steps {
-        container('dind') {
-            sh '''
-                docker tag techfixer-server:latest \
-                  nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/techfixer-server:latest
-
-                docker push \
-                  nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/techfixer-server:latest
-            '''
         }
-    }
-}
 
-      stage('Create Namespace + Secrets') {
-   steps {
-    container('kubectl') {
-        withCredentials([
-            string(credentialsId: 'mongo-url-2401029', variable: 'MONGO_URL'),
-            string(credentialsId: 'session-secret-2401029', variable: 'SESSION_SECRET'),
-            string(credentialsId: 'cloud-name-2401029', variable: 'CLOUD_NAME'),
-            string(credentialsId: 'cloud-key-2401029', variable: 'CLOUD_KEY'),
-            string(credentialsId: 'cloud-secret-2401029', variable: 'CLOUD_SECRET'),
-            string(credentialsId: 'stripe-secret-2401029', variable: 'STRIPE_SECRET'),
-            string(credentialsId: 'stripe-publish-2401029', variable: 'STRIPE_PUBLISH')
-        ]) {
+        stage('Tag + Push Image') {
+            steps {
+                container('dind') {
+                    sh '''
+                        docker tag techfixer-server:latest \
+                          nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/techfixer-server:latest
 
-            sh '''
-                kubectl get namespace 2401029 || kubectl create namespace 2401029
-
-                kubectl create secret docker-registry nexus-secret \
-                  --docker-server=nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085 \
-                  --docker-username=admin \
-                  --docker-password=Changeme@2025 \
-                  --namespace=2401029 || true
-
-                kubectl create secret generic server-secret \
-                  --from-literal=MONGO_URL="$MONGO_URL" \
-                  --from-literal=SESSION_SECRET="$SESSION_SECRET" \
-                  --from-literal=CLOUDINARY_CLOUD_NAME="$CLOUD_NAME" \
-                  --from-literal=CLOUDINARY_API_KEY="$CLOUD_KEY" \
-                  --from-literal=CLOUDINARY_API_SECRET="$CLOUD_SECRET" \
-                  --from-literal=STRIPE_SECRET_KEY="$STRIPE_SECRET" \
-                  --from-literal=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISH" \
-                  -n 2401029 || true
-            '''
+                        docker push \
+                          nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/techfixer-server:latest
+                    '''
+                }
+            }
         }
-    }
-}
 
-}
+        stage('Create Namespace + Secrets') {
+            steps {
+                container('kubectl') {
+                    withCredentials([
+                        string(credentialsId: 'mongo-url-2401029', variable: 'MONGO_URL'),
+                        string(credentialsId: 'session-secret-2401029', variable: 'SESSION_SECRET'),
+                        string(credentialsId: 'cloud-name-2401029', variable: 'CLOUD_NAME'),
+                        string(credentialsId: 'cloud-key-2401029', variable: 'CLOUD_KEY'),
+                        string(credentialsId: 'cloud-secret-2401029', variable: 'CLOUD_SECRET'),
+                        string(credentialsId: 'stripe-secret-2401029', variable: 'STRIPE_SECRET'),
+                        string(credentialsId: 'stripe-publish-2401029', variable: 'STRIPE_PUBLISH')
+                    ]) {
 
+                        sh '''
+                            kubectl get namespace 2401029 || kubectl create namespace 2401029
+
+                            kubectl create secret docker-registry nexus-secret \
+                              --docker-server=nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085 \
+                              --docker-username=admin \
+                              --docker-password=Changeme@2025 \
+                              --namespace=2401029 || true
+
+                            kubectl create secret generic server-secret \
+                              --from-literal=MONGO_URL="$MONGO_URL" \
+                              --from-literal=SESSION_SECRET="$SESSION_SECRET" \
+                              --from-literal=CLOUDINARY_CLOUD_NAME="$CLOUD_NAME" \
+                              --from-literal=CLOUDINARY_API_KEY="$CLOUD_KEY" \
+                              --from-literal=CLOUDINARY_API_SECRET="$CLOUD_SECRET" \
+                              --from-literal=STRIPE_SECRET_KEY="$STRIPE_SECRET" \
+                              --from-literal=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISH" \
+                              -n 2401029 || true
+                        '''
+                    }
+                }
+            }
+        }
 
         stage('Deploy to Kubernetes') {
             steps {
@@ -168,12 +166,11 @@ stage('SonarQube Scan') {
                     dir('k8s-deployment') {
                         sh '''
                             kubectl apply -f deployment.yaml
-                            kubectl get pods -n KRISHNA
+                            kubectl get pods -n 2401029
                         '''
                     }
                 }
             }
         }
     }
-}
 }
