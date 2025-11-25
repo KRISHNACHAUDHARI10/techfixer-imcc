@@ -124,39 +124,41 @@ stage('SonarQube Scan') {
 }
 
       stage('Create Namespace + Secrets') {
-    steps {
-        container('kubectl') {
-            withCredentials([
-                string(credentialsId: 'mongo-url-2401029', variable: 'mongodb+srv://krishnachaudhari0340_boxselling:ZUjCPWQcMVtI41TZ@cluster1.evfh7yz.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster1'),
-                string(credentialsId: 'session-secret-2401029', variable: 'asdjfjsdjfndnsf'),
-                string(credentialsId: 'cloud-name-2401029', variable: 'dyh1prydb'),
-                string(credentialsId: 'cloud-key-2401029', variable: '842335527617465'),
-                string(credentialsId: 'cloud-secret-2401029', variable: 'aDEowpXRi0HP8xTeyZtimCcrabA'),
-                string(credentialsId: 'stripe-secret-2401029', variable: 'sk_test_51RbN68H7MtYFZNLZ8gQ5Nf0hDoD6ByJsSmHy96ocHNR2npeEe9amLLmCQNe8G0BrCzvi4EJROISZFhgYdf7a7ji500ZigalT5i'),
-                string(credentialsId: 'stripe-publish-2401029', variable: 'pk_test_51RbN68H7MtYFZNLZsKLYFNPtbIoEnqlAScHPe0U8WOgJ2JLJooZ8auwcZgtiMFvZlsupfl653zxHguRn9mtqnR7a00RQiCnZou')
-            ]) {
-                sh '''
-                    kubectl get namespace 2401029 || kubectl create namespace 2401029
+   steps {
+    container('kubectl') {
+        withCredentials([
+            string(credentialsId: 'mongo-url-2401029', variable: 'MONGO_URL'),
+            string(credentialsId: 'session-secret-2401029', variable: 'SESSION_SECRET'),
+            string(credentialsId: 'cloud-name-2401029', variable: 'CLOUD_NAME'),
+            string(credentialsId: 'cloud-key-2401029', variable: 'CLOUD_KEY'),
+            string(credentialsId: 'cloud-secret-2401029', variable: 'CLOUD_SECRET'),
+            string(credentialsId: 'stripe-secret-2401029', variable: 'STRIPE_SECRET'),
+            string(credentialsId: 'stripe-publish-2401029', variable: 'STRIPE_PUBLISH')
+        ]) {
 
-                    kubectl create secret docker-registry nexus-secret \
-                      --docker-server=nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085 \
-                      --docker-username=admin \
-                      --docker-password=Changeme@2025 \
-                      --namespace=2401029 || true
+            sh '''
+                kubectl get namespace 2401029 || kubectl create namespace 2401029
 
-                    kubectl create secret generic server-secret \
-                      --from-literal=MONGO_URL="$MONGO_URL" \
-                      --from-literal=SESSION_SECRET="$SESSION_SECRET" \
-                      --from-literal=CLOUDINARY_CLOUD_NAME="$CLOUD_NAME" \
-                      --from-literal=CLOUDINARY_API_KEY="$CLOUD_KEY" \
-                      --from-literal=CLOUDINARY_API_SECRET="$CLOUD_SECRET" \
-                      --from-literal=STRIPE_SECRET_KEY="$STRIPE_SECRET" \
-                      --from-literal=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISH" \
-                      -n 2401029 || true
-                '''
-            }
+                kubectl create secret docker-registry nexus-secret \
+                  --docker-server=nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085 \
+                  --docker-username=admin \
+                  --docker-password=Changeme@2025 \
+                  --namespace=2401029 || true
+
+                kubectl create secret generic server-secret \
+                  --from-literal=MONGO_URL="$MONGO_URL" \
+                  --from-literal=SESSION_SECRET="$SESSION_SECRET" \
+                  --from-literal=CLOUDINARY_CLOUD_NAME="$CLOUD_NAME" \
+                  --from-literal=CLOUDINARY_API_KEY="$CLOUD_KEY" \
+                  --from-literal=CLOUDINARY_API_SECRET="$CLOUD_SECRET" \
+                  --from-literal=STRIPE_SECRET_KEY="$STRIPE_SECRET" \
+                  --from-literal=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISH" \
+                  -n 2401029 || true
+            '''
         }
     }
+}
+
 }
 
 
