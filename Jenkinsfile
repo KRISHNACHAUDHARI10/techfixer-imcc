@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'node18'
-    }
-
     environment {
         SONAR_PROJECT_KEY  = 'techfixer'
         SONAR_PROJECT_NAME = 'TechFixer'
@@ -16,6 +12,8 @@ pipeline {
         stage('CHECK') {
             steps {
                 echo "TECHFIXER-IMCC NODE.JS PIPELINE STARTED"
+                sh 'node -v || true'
+                sh 'npm -v || true'
             }
         }
 
