@@ -1,7 +1,7 @@
 pipeline {
     agent {
         kubernetes {
-            yaml """
+            yaml '''
 apiVersion: v1
 kind: Pod
 spec:
@@ -11,7 +11,12 @@ spec:
     command: ["cat"]
     tty: true
 
-  - name: docker
+  - name: sonar-scanner
+    image: sonarsource/sonar-scanner-cli
+    command: ["cat"]
+    tty: true
+
+  - name: dind
     image: docker:dind
     securityContext:
       privileged: true
@@ -24,13 +29,8 @@ spec:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
 
-  - name: sonar
-    image: sonarsource/sonar-scanner-cli
-    command: ["cat"]
-    tty: true
-
   - name: jnlp
-    image: jenkins/inbound-agent:3309.v27b9314fd1a4-1
+    image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-1
     env:
     - name: JENKINS_AGENT_WORKDIR
       value: "/home/jenkins/agent"
@@ -41,19 +41,25 @@ spec:
   volumes:
   - name: workspace-volume
     emptyDir: {}
-"""
+'''
         }
     }
 
     environment {
-        SONAR_PROJECT_KEY  = 'techfixer'
-        SONAR_PROJECT_NAME = 'TechFixer'
-        IMAGE_NAME         = 'techfixer-imcc'
+        IMAGE_NAME = "techfixer-imcc"
+        SONAR_PROJECT_KEY  = "techfixer"
+        SONAR_PROJECT_NAME = "TechFixer"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('CHECK') {
+            steps {
+                echo "IMCC PIPELINE ACTIVE ✔"
+            }
+        }
+
+        stage('Checkout Code') {
             steps {
                 container('node') {
                     git branch: 'main',
@@ -71,32 +77,47 @@ spec:
             }
         }
 
-        stage('Sonar Scan') {
+        stage('SonarQube Scan') {
             steps {
-                container('sonar') {
+                container('sonar-scanner') {
                     withCredentials([string(credentialsId: 'sonar-token-techfixer', variable: 'SONAR_TOKEN')]) {
                         sh """
-                          sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                            -Dsonar.sources=. \
-                            -Dsonar.login=$SONAR_TOKEN \
-                            -Dsonar.host.url=http://sonarqube.imcc.com
+                            sonar-scanner \
+                              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                              -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://sonarqube.imcc.com \
+                              -Dsonar.login=$SONAR_TOKEN
                         """
                     }
                 }
             }
         }
 
-        stage('Docker Build') {
+        stage('Build Docker Image') {
             steps {
-                container('docker') {
-                    sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
+                container('dind') {
+                    sh """
+                        sleep 10
+                        docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                    """
                 }
             }
         }
 
-        stage('Package Artifact') {
+        stage('Tag + Push Docker Image') {
+            steps {
+                container('dind') {
+                    sh """
+                        docker login nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085 -u admin -p Changeme@2025
+                        docker tag ${IMAGE_NAME}:${BUILD_NUMBER} nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/${IMAGE_NAME}:${BUILD_NUMBER}
+                        docker push nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/${IMAGE_NAME}:${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        stage('Package Artifact (.tar.gz)') {
             steps {
                 container('node') {
                     sh "tar czf ${IMAGE_NAME}-${BUILD_NUMBER}.tar.gz ."
@@ -104,22 +125,21 @@ spec:
             }
         }
 
-        stage('Upload to Nexus') {
+        stage('Upload tar.gz to Nexus') {
             steps {
                 container('node') {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'nexus-imcc',
-                        usernameVariable: 'NEXUS_USER',
-                        passwordVariable: 'NEXUS_PASS'
-                    )]) {
+                    withCredentials([
+                        usernamePassword(credentialsId: 'nexus-imcc', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')
+                    ]) {
                         sh """
-                         curl -v -u $NEXUS_USER:$NEXUS_PASS \
-                         --upload-file ${IMAGE_NAME}-${BUILD_NUMBER}.tar.gz \
-                         "http://nexus.imcc.com/repository/my-repository/${IMAGE_NAME}/${IMAGE_NAME}-${BUILD_NUMBER}.tar.gz"
+                            curl -v -u $NEXUS_USER:$NEXUS_PASS \
+                                --upload-file ${IMAGE_NAME}-${BUILD_NUMBER}.tar.gz \
+                                "http://nexus.imcc.com/repository/my-repository/${IMAGE_NAME}/${IMAGE_NAME}-${BUILD_NUMBER}.tar.gz"
                         """
                     }
                 }
             }
         }
+
     }
 }
